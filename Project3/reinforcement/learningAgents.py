@@ -53,7 +53,17 @@ class ValueEstimationAgent(Agent):
         """
         Should return Q(state,action)
         """
-        util.raiseNotDefined()
+        q_value = 0.0
+        gamma = self.discount
+        
+        # NOTE: self.mdp and self.values are typically available in child classes
+        for next_state, prob in self.mdp.getTransitionStatesAndProbs(state, action):
+            if prob > 0:
+                reward = self.mdp.getReward(state, action, next_state)
+                # Use self.values for V(s')
+                next_state_value = self.values[next_state]
+                q_value += prob * (reward + gamma * next_state_value)
+        return q_value
 
     def getValue(self, state):
         """
@@ -62,7 +72,19 @@ class ValueEstimationAgent(Agent):
 
         V(s) = max_{a in actions} Q(s,a)
         """
-        util.raiseNotDefined()
+        if self.mdp.isTerminal(state):
+            return 0.0
+
+        possible_actions = self.mdp.getPossibleActions(state)
+        if not possible_actions:
+            return 0.0
+
+        max_q_value = -float('inf')
+        for action in possible_actions:
+            q_value = self.getQValue(state, action)
+            max_q_value = max(max_q_value, q_value)
+
+        return max_q_value
 
     def getPolicy(self, state):
         """
@@ -75,14 +97,37 @@ class ValueEstimationAgent(Agent):
         If many actions achieve the maximal Q-value,
         it doesn't matter which is selected.
         """
-        util.raiseNotDefined()
+        if self.mdp.isTerminal(state):
+            return None
+
+        possible_actions = self.mdp.getPossibleActions(state)
+        if not possible_actions:
+            return None
+        
+        # Use util.Counter to find the argmax easily
+        q_values = util.Counter()
+        for action in possible_actions:
+            q_values[action] = self.getQValue(state, action)
+
+        return q_values.argMax()
 
     def getAction(self, state):
         """
         state: can call state.getLegalActions()
         Choose an action and return it.
         """
-        util.raiseNotDefined()
+        legalActions = self.mdp.getPossibleActions(state)
+        
+        if not legalActions:
+             return None
+
+        # Epsilon-greedy: Explore (random) or Exploit (policy)
+        if util.flipCoin(self.epsilon):
+            action = random.choice(legalActions)
+        else:
+            action = self.getPolicy(state)
+            
+        return action
 
 class ReinforcementAgent(ValueEstimationAgent):
     """
